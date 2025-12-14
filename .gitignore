@@ -1,0 +1,89 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.sublime-project
+*.sublime-workspace
+
+# Test & Debug artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.hypothesis/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+.Spotlight-V100
+.Trashes
+
+# Editor temporary files
+*~
+*.bak
+*.swp
+*.swo
+
+# Build outputs (these are generated)
+*.json.bak
+*.converted.*
+
+# External repos (if included)
+draw_steel_repo/
+forgesteel_repo/
+
+# Factory/Kilocode system
+.factory/
+.kilocode/
+openspec/
+
+# AI development files (keep local, hide from GitHub)
+.claude/
+AGENTS.md
+CLAUDE.md
+ask-perplexity.js
+debug_*.py
+check_*.py
+nul
+wilderness.jpg
+
+# Test character files (keep local, hide from GitHub)
+*.ds-hero
+*_converted.json
+*_final_*.json
+*_fix*.json
+fvtt-Actor-*.json
