@@ -49,6 +49,8 @@ def _convert_feature(feature_data, item_type, compendium_items):
     # Special case mappings for features that have different names in Forgesteel vs Compendium
     known_mappings = {
         "Clarity": "clarity-and-strain",
+        "Glowing Eyes": "glowing-eyes",
+        "Psionic Bolt": "psionic-bolt",  # Handle space naming difference
     }
 
     compendium_item = None
@@ -393,7 +395,11 @@ def convert_character(character_data, compendium_items, strict=False, verbose=Fa
         for feature in ancestry.get("features", []):
             if feature.get("type") == "Choice":
                 for selected_feature in feature.get("data", {}).get("selected", []):
-                    item = _convert_feature(selected_feature, "ancestryTrait", compendium_items)
+                    # Determine the correct item type based on the selected feature's type
+                    selected_type = selected_feature.get("type", "ancestryTrait")
+                    item_type = "ability" if selected_type == "Ability" else "ancestryTrait"
+
+                    item = _convert_feature(selected_feature, item_type, compendium_items)
                     if item: foundry_character["items"].append(item)
             else:
                 item = _convert_feature(feature, "ancestryTrait", compendium_items)
@@ -455,8 +461,13 @@ def convert_character(character_data, compendium_items, strict=False, verbose=Fa
                     
                     if feature.get("type") == "Choice":
                         for selected_feature in feature.get("data", {}).get("selected", []):
-                            item = _convert_feature(selected_feature, "feature", compendium_items)
+                            # Determine the correct item type based on the selected feature's type
+                            selected_type = selected_feature.get("type", "feature")
+                            item_type = "ability" if selected_type == "Ability" else "feature"
+
+                            item = _convert_feature(selected_feature, item_type, compendium_items)
                             if item: foundry_character["items"].append(item)
+                        continue
                     elif feature_type == "Multiple Features":
                         # Process Multiple Features to extract nested abilities
                         nested_features = feature_data.get("features", [])
