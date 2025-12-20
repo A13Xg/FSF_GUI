@@ -401,6 +401,15 @@ def convert_character(character_data, compendium_items, strict=False, verbose=Fa
 
                     item = _convert_feature(selected_feature, item_type, compendium_items)
                     if item: foundry_character["items"].append(item)
+
+                    # Handle nested Choice features (e.g., Psionic Gift -> Psionic Bolt)
+                    if selected_type == "Choice" and "data" in selected_feature and "selected" in selected_feature.get("data", {}):
+                        for nested_feature in selected_feature.get("data", {}).get("selected", []):
+                            nested_type = nested_feature.get("type", "ancestryTrait")
+                            nested_item_type = "ability" if nested_type == "Ability" else "ancestryTrait"
+
+                            nested_item = _convert_feature(nested_feature, nested_item_type, compendium_items)
+                            if nested_item: foundry_character["items"].append(nested_item)
             else:
                 item = _convert_feature(feature, "ancestryTrait", compendium_items)
                 if item: foundry_character["items"].append(item)
