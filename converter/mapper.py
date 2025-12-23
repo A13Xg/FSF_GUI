@@ -1,3 +1,6 @@
+import json
+import os
+
 def _convert_feature(feature_data, item_type):
     """Converts a forgesteel feature to a Foundry VTT item."""
     return {
@@ -393,26 +396,27 @@ def convert_character(character_data, compendium_items, strict=False, verbose=Fa
         item = _convert_feature(ancestry, "ancestry", compendium_items)
         if item: foundry_character["items"].append(item)
 
-        # Process ancestry advancements to add granted abilities
+        # Process ancestry advancements to add granted items (traits/abilities)
         if "system" in item and "advancements" in item["system"]:
             for advancement_id, advancement in item["system"]["advancements"].items():
                 if advancement.get("type") == "itemGrant" and "pool" in advancement:
-                    # Add abilities from the ancestry's advancement pool
+                    # Add items from the ancestry's advancement pool
                     for pool_item in advancement["pool"]:
                         if "uuid" in pool_item:
-                            # Look up the ability in compendium by UUID
+                            uuid_target = pool_item["uuid"].split(".")[-1]
+                            # Look up the item in compendium by UUID
+                            added_item = None
                             for comp_item in compendium_items.values():
-                                if (comp_item.get("_id") == pool_item["uuid"].split(".")[-1] or
+                                if (comp_item.get("_id") == uuid_target or
                                     comp_item.get("flags", {}).get("draw-steel", {}).get("sourceId") == pool_item["uuid"]):
-                                    ability_copy = comp_item.copy()
-                                    ability_copy["type"] = "ability"
-                                    # Ensure action type is lowercase for Foundry compatibility
-                                    if "system" in ability_copy and "type" in ability_copy["system"]:
-                                        current_type = ability_copy["system"]["type"]
-                                        if isinstance(current_type, str):
-                                            ability_copy["system"]["type"] = current_type.lower()
-                                    foundry_character["items"].append(ability_copy)
+                                    item_copy = comp_item.copy()
+                                    foundry_character["items"].append(item_copy)
+                                    added_item = item_copy
                                     break
+
+                            # If we added an item, process its advancements too
+                            if added_item:
+                                _process_item_advancements(added_item, compendium_items, foundry_character)
 
         for feature in ancestry.get("features", []):
             if feature.get("type") == "Choice":
@@ -835,6 +839,56 @@ def _normalize_skill_name(skill_name):
     other_words = [word.capitalize() for word in words[1:]]
 
     return first_word + "".join(other_words)
+
+
+def _process_item_advancements(item, compendium_items, foundry_character):
+    """Process advancements for an item to add granted abilities."""
+    if "system" not in item or "advancements" not in item["system"]:
+        return
+
+    for advancement_id, advancement in item["system"]["advancements"].items():
+        if advancement.get("type") == "itemGrant" and "pool" in advancement:
+            # Add abilities from the item's advancement pool
+            for pool_item in advancement["pool"]:
+                if "uuid" in pool_item:
+                    uuid_target = pool_item["uuid"].split(".")[-1]
+                    # Look up the ability in compendium by UUID
+                    for comp_item in compendium_items.values():
+                        if (comp_item.get("_id") == uuid_target or
+                            comp_item.get("flags", {}).get("draw-steel", {}).get("sourceId") == pool_item["uuid"]):
+                            ability_copy = comp_item.copy()
+                            ability_copy["type"] = "ability"
+                            # Ensure action type is lowercase for Foundry compatibility
+                            if "system" in ability_copy and "type" in ability_copy["system"]:
+                                current_type = ability_copy["system"]["type"]
+                                if isinstance(current_type, str):
+                                    ability_copy["system"]["type"] = current_type.lower()
+                            foundry_character["items"].append(ability_copy)
+                            break
+                    else:
+                        # If not found by _id, search all compendium items for matching _id
+                        # This handles cases where items have same _dsid but different _id
+                        for root, dirs, files in os.walk("draw_steel_repo/src/packs"):
+                            for file in files:
+                                if file.endswith(".json") and uuid_target in file:
+                                    file_path = os.path.join(root, file)
+                                    try:
+                                        with open(file_path, "r", encoding="utf-8") as f:
+                                            direct_item = json.load(f)
+                                            if direct_item.get("_id") == uuid_target:
+                                                ability_copy = direct_item.copy()
+                                                ability_copy["type"] = "ability"
+                                                # Ensure action type is lowercase for Foundry compatibility
+                                                if "system" in ability_copy and "type" in ability_copy["system"]:
+                                                    current_type = ability_copy["system"]["type"]
+                                                    if isinstance(current_type, str):
+                                                        ability_copy["system"]["type"] = current_type.lower()
+                                                foundry_character["items"].append(ability_copy)
+                                                break
+                                    except:
+                                        pass
+                            if any(item.get("_id") == uuid_target for item in foundry_character["items"][-1:]):
+                                break
 
 
 def _populate_advancement_selections(character_data, source_data, compendium_items):
