@@ -496,30 +496,29 @@ def convert_character(character_data, compendium_items, strict=False, verbose=Fa
                                 # Process the trait's advancement to grant selected abilities
                                 _process_choice_advancement(parent_trait, selected_feature.get("data", {}).get("selected", []), compendium_items, foundry_character)
             else:
-                item = _convert_feature(feature, "ancestryTrait", compendium_items)
-                if item:
-                    foundry_character["items"].append(item)
+                # For non-Choice features, try to use compendium version to get advancements
+                feature_name = feature.get("name")
+                item = None
+                for comp_item in compendium_items.values():
+                    if comp_item.get("name") == feature_name and comp_item.get("type") == "ancestryTrait":
+                        item = comp_item.copy()
+                        break
 
-                    # Process ancestry trait advancements to add granted abilities
-                    if "system" in item and "advancements" in item["system"]:
-                        for advancement_id, advancement in item["system"]["advancements"].items():
-                            if advancement.get("type") == "itemGrant" and "pool" in advancement:
-                                # Add abilities from the ancestry trait's advancement pool
-                                for pool_item in advancement["pool"]:
-                                    if "uuid" in pool_item:
-                                        # Look up the ability in compendium by UUID
-                                        for comp_item in compendium_items.values():
-                                            if (comp_item.get("_id") == pool_item["uuid"].split(".")[-1] or
-                                                comp_item.get("flags", {}).get("draw-steel", {}).get("sourceId") == pool_item["uuid"]):
-                                                ability_copy = comp_item.copy()
-                                                ability_copy["type"] = "ability"
-                                                # Ensure action type is lowercase for Foundry compatibility
-                                                if "system" in ability_copy and "type" in ability_copy["system"]:
-                                                    current_type = ability_copy["system"]["type"]
-                                                    if isinstance(current_type, str):
-                                                        ability_copy["system"]["type"] = current_type.lower()
-                                                foundry_character["items"].append(ability_copy)
-                                                break
+                # If not found in compendium, create from feature data
+                if not item:
+                    item = _convert_feature(feature, "ancestryTrait", compendium_items)
+
+                if item:
+                    # Check for duplicates before adding
+                    is_duplicate = any(
+                        existing.get("name") == item.get("name") and existing.get("type") == item.get("type")
+                        for existing in foundry_character["items"]
+                    )
+                    if not is_duplicate:
+                        foundry_character["items"].append(item)
+
+                        # Process ancestry trait advancements to add granted abilities
+                        _process_item_advancements(item, compendium_items, foundry_character)
 
     # Culture
     culture = character_data.get("culture")
