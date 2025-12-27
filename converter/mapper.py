@@ -397,10 +397,15 @@ def convert_character(character_data, compendium_items, strict=False, verbose=Fa
         if item: foundry_character["items"].append(item)
 
         # Process ancestry advancements to add granted items (traits/abilities)
+        # Skip choice advancements since they're handled by ancestry.features processing
         if "system" in item and "advancements" in item["system"]:
             for advancement_id, advancement in item["system"]["advancements"].items():
+                # Skip choice advancements - these are handled by the ancestry.features processing
+                if advancement.get("chooseN"):
+                    continue
+
                 if advancement.get("type") == "itemGrant" and "pool" in advancement:
-                    # Add items from the ancestry's advancement pool
+                    # Add items from the ancestry's advancement pool (non-choice)
                     for pool_item in advancement["pool"]:
                         if "uuid" in pool_item:
                             uuid_target = pool_item["uuid"].split(".")[-1]
@@ -421,13 +426,31 @@ def convert_character(character_data, compendium_items, strict=False, verbose=Fa
         for feature in ancestry.get("features", []):
             if feature.get("type") == "Choice":
                 for selected_feature in feature.get("data", {}).get("selected", []):
-                    # Determine the correct item type based on the selected feature's type
+                    # Ancestry features should always be ancestryTrait, even if they contain abilities
+                    # The abilities will be granted through the trait's advancements
                     selected_type = selected_feature.get("type", "ancestryTrait")
-                    item_type = "ability" if selected_type == "Ability" else "ancestryTrait"
+                    item_type = "ancestryTrait"
 
-                    item = _convert_feature(selected_feature, item_type, compendium_items)
+                    # Try to find the item in compendium first (to get advancements)
+                    item_name = selected_feature.get("name")
+                    item = None
+                    for comp_item in compendium_items.values():
+                        if comp_item.get("name") == item_name and comp_item.get("type") == item_type:
+                            item = comp_item.copy()
+                            break
+
+                    # If not found in compendium, create from feature data
+                    if not item:
+                        item = _convert_feature(selected_feature, item_type, compendium_items)
+
                     if item:
-                        foundry_character["items"].append(item)
+                        # Check for duplicates before adding
+                        is_duplicate = any(
+                            existing.get("name") == item.get("name") and existing.get("type") == item.get("type")
+                            for existing in foundry_character["items"]
+                        )
+                        if not is_duplicate:
+                            foundry_character["items"].append(item)
 
                         # Process selected feature advancements to add granted abilities
                         if "system" in item and "advancements" in item["system"]:
