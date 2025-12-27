@@ -21,17 +21,51 @@ from pathlib import Path
 
 # GitHub repository details for Draw Steel
 GITHUB_REPO = "MetaMorphic-Digital/draw-steel"
-GITHUB_BRANCH = "main"
+GITHUB_BRANCH = "main"  # Fallback branch
 GITHUB_RAW_URL = (
     f"https://raw.githubusercontent.com/{GITHUB_REPO}/{GITHUB_BRANCH}/src/packs"
 )
 GITHUB_API_URL = f"https://api.github.com/repos/{GITHUB_REPO}/contents/src/packs"
+GITHUB_RELEASES_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases"
 
 
 def load_forgesteel_character(file_path):
     """Loads a forgesteel character from a .ds-hero file."""
     with open(file_path, "r", encoding="utf-8") as f:
         return json.load(f)
+
+
+def _get_latest_release_tag(verbose=False):
+    """Get the latest release tag from GitHub repository."""
+    try:
+        req = urllib.request.Request(
+            GITHUB_RELEASES_URL,
+            headers={
+                "Accept": "application/vnd.github.v3+json",
+                "User-Agent": "forgesteel-converter",
+            },
+        )
+        with urllib.request.urlopen(req, timeout=10) as response:
+            releases = json.loads(response.read().decode("utf-8"))
+
+        if releases:
+            latest_tag = releases[0]["tag_name"]  # First release is the latest
+            if verbose:
+                print(f"DEBUG: Using latest release tag: {latest_tag}")
+            return latest_tag
+        else:
+            if verbose:
+                print("DEBUG: No releases found, using default branch")
+            return None
+
+    except urllib.error.URLError as e:
+        if verbose:
+            print(f"Warning: Could not fetch releases: {e}")
+        return None
+    except Exception as e:
+        if verbose:
+            print(f"Warning: Error getting releases: {e}")
+        return None
 
 
 def _fetch_github_files(verbose=False):
@@ -45,8 +79,23 @@ def _fetch_github_files(verbose=False):
     if verbose:
         print("DEBUG: Fetching compendium from GitHub...")
 
-    try:
-        # Get list of pack directories
+    # Try to get the latest release tag
+    release_tag = _get_latest_release_tag(verbose)
+
+    # Determine which branch/tag to use
+    if release_tag:
+        # Use the release tag
+        api_url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/src/packs"
+        headers = {
+            "Accept": "application/vnd.github.v3+json",
+            "User-Agent": "forgesteel-converter",
+        }
+        # Add query parameter to use the release tag
+        req = urllib.request.Request(f"{api_url}?ref={release_tag}", headers=headers)
+        if verbose:
+            print(f"DEBUG: Fetching from release tag: {release_tag}")
+    else:
+        # Fallback to default branch
         req = urllib.request.Request(
             GITHUB_API_URL,
             headers={
@@ -54,6 +103,10 @@ def _fetch_github_files(verbose=False):
                 "User-Agent": "forgesteel-converter",
             },
         )
+        if verbose:
+            print("DEBUG: Fetching from default branch")
+
+    try:
         with urllib.request.urlopen(req, timeout=10) as response:
             packs = json.loads(response.read().decode("utf-8"))
 
@@ -66,7 +119,7 @@ def _fetch_github_files(verbose=False):
                 print(f"DEBUG: Fetching pack directory: {pack_name}")
 
             # Recursively get files from this pack directory
-            _fetch_pack_files(pack["url"], items, pack_name, verbose)
+            _fetch_pack_files(pack["url"], items, pack_name, verbose, release_tag=release_tag)
 
         if verbose:
             print(f"DEBUG: GitHub fetch complete: {len(items)} items loaded")
@@ -80,14 +133,20 @@ def _fetch_github_files(verbose=False):
         return {}
 
 
-def _fetch_pack_files(api_url, items_dict, pack_name, verbose=False, depth=0):
+def _fetch_pack_files(api_url, items_dict, pack_name, verbose=False, depth=0, release_tag=None):
     """Recursively fetches JSON files from a GitHub API directory URL."""
     if depth > 10:  # Increase depth limit for nested directories
         return
 
     try:
+        # Add ref parameter if we're using a release tag
+        if release_tag:
+            api_url_with_ref = f"{api_url}?ref={release_tag}"
+        else:
+            api_url_with_ref = api_url
+
         req = urllib.request.Request(
-            api_url,
+            api_url_with_ref,
             headers={
                 "Accept": "application/vnd.github.v3+json",
                 "User-Agent": "forgesteel-converter",
@@ -123,7 +182,7 @@ def _fetch_pack_files(api_url, items_dict, pack_name, verbose=False, depth=0):
                 if verbose:
                     print(f"DEBUG: Recursing into directory: {item['name']}")
                 _fetch_pack_files(
-                    item["url"], items_dict, pack_name, verbose, depth + 1
+                    item["url"], items_dict, pack_name, verbose, depth + 1, release_tag
                 )
 
     except urllib.error.URLError:
@@ -179,8 +238,8 @@ def load_compendium_items(
     compendium_path = Path(compendium_path)
     cache_dir = Path.home() / ".cache" / "forgesteel-converter" / "compendium"
 
-    # Try local path first
-    if compendium_path.exists() and compendium_path.is_dir():
+    # Try local path first (unless force_update is True)
+    if not force_update and compendium_path.exists() and compendium_path.is_dir():
         if verbose:
             print(f"DEBUG: Loading local compendium from {compendium_path}")
 
@@ -198,8 +257,8 @@ def load_compendium_items(
                 )
             return items
 
-    # Try cache next
-    if cache_dir.exists() and cache_dir.is_dir():
+    # Try cache next (unless force_update is True)
+    if not force_update and cache_dir.exists() and cache_dir.is_dir():
         if verbose:
             print(f"DEBUG: Loading compendium from cache...")
 
@@ -214,9 +273,12 @@ def load_compendium_items(
                 )
             return items
 
-    # Fall back to GitHub
+    # Fall back to GitHub (or use if force_update)
     if verbose:
-        print(f"DEBUG: Local and cache not available, fetching from GitHub...")
+        if force_update:
+            print(f"DEBUG: Force update requested, fetching from GitHub...")
+        else:
+            print(f"DEBUG: Local and cache not available, fetching from GitHub...")
 
     github_items = _fetch_github_files(verbose)
 
