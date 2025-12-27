@@ -397,15 +397,12 @@ def convert_character(character_data, compendium_items, strict=False, verbose=Fa
         if item: foundry_character["items"].append(item)
 
         # Process ancestry advancements to add granted items (traits/abilities)
-        # Skip choice advancements since they're handled by ancestry.features processing
-        if "system" in item and "advancements" in item["system"]:
+        # Only process if the ancestry doesn't have features that are already handled separately
+        # This prevents duplicate items from being added
+        if "system" in item and "advancements" in item["system"] and not ancestry.get("features"):
             for advancement_id, advancement in item["system"]["advancements"].items():
-                # Skip choice advancements - these are handled by the ancestry.features processing
-                if advancement.get("chooseN"):
-                    continue
-
                 if advancement.get("type") == "itemGrant" and "pool" in advancement:
-                    # Add items from the ancestry's advancement pool (non-choice)
+                    # Add items from the ancestry's advancement pool
                     for pool_item in advancement["pool"]:
                         if "uuid" in pool_item:
                             uuid_target = pool_item["uuid"].split(".")[-1]
