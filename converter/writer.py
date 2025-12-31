@@ -1,6 +1,12 @@
 import json
-import uuid
+import random
+import string
 import time
+
+def _generate_foundry_id():
+    """Generate a valid 16-character alphanumeric ID for Foundry VTT."""
+    chars = string.ascii_lowercase + string.digits
+    return ''.join(random.choices(chars, k=16))
 
 def write_foundry_character(character_data, file_path):
     """Writes a Foundry VTT character to a .json file with proper document structure."""
@@ -10,7 +16,7 @@ def write_foundry_character(character_data, file_path):
         character_data["type"] = "hero"
 
     if "_id" not in character_data:
-        character_data["_id"] = str(uuid.uuid4())
+        character_data["_id"] = _generate_foundry_id()
 
     # Set critical metadata for Foundry v13 compatibility
     if "_stats" not in character_data:
@@ -35,7 +41,7 @@ def write_foundry_character(character_data, file_path):
     # Ensure each item has required consistent metadata
     for item in character_data.get("items", []):
         if "_id" not in item:
-            item["_id"] = str(uuid.uuid4())
+            item["_id"] = _generate_foundry_id()
 
         if "_stats" not in item:
             item["_stats"] = {}
