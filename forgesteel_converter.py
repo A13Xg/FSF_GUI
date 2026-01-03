@@ -31,7 +31,7 @@ def main():
     )
     parser.add_argument(
         "--compendium",
-        help="The path to the draw_steel_repo/src/packs directory",
+        help="The path to the draw_steel_repo/src/packs directory, or a directory containing extracted GitHub zip",
         default="draw_steel_repo/src/packs",
     )
     parser.add_argument(
