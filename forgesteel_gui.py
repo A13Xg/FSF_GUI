@@ -9,7 +9,6 @@ import threading
 import logging
 import json
 import sys
-import os
 from pathlib import Path
 
 from converter.loader import load_forgesteel_character, load_compendium_items
