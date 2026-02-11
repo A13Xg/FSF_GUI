@@ -523,7 +523,6 @@ class ForgesteelGUI(tk.Tk):
         win = tk.Toplevel(self)
         win.title("Help & Tips")
         win.configure(bg=BG_DARK)
-        win.geometry("560x520")
         win.resizable(False, False)
         win.transient(self)
         win.grab_set()
@@ -548,7 +547,7 @@ class ForgesteelGUI(tk.Tk):
             spacing1=2,
             spacing3=2,
         )
-        txt.pack(fill="both", expand=True)
+        txt.pack(fill="x")
 
         txt.tag_configure("heading", foreground=FG_ACCENT, font=("Segoe UI Semibold", 11), spacing1=10)
         txt.tag_configure("body", foreground=FG_PRIMARY, font=("Segoe UI", 10))
@@ -626,6 +625,22 @@ class ForgesteelGUI(tk.Tk):
             width=100, height=34, radius=8, font=("Segoe UI Semibold", 10),
         )
         close_btn.pack(side="right")
+
+        # Let geometry calculate, then size the window to fit all content
+        # capped to 90% of screen height so it stays usable on small displays.
+        win.update_idletasks()
+        content_h = txt.count("1.0", "end", "ypixels")[0] + int(txt.cget("pady")) * 2
+        txt.configure(height=1)  # reset line-based height so pixel height governs
+        txt.configure(height=0)
+
+        win.update_idletasks()
+        # Total height = header/subtitle + text content + button + padding
+        chrome_h = win.winfo_reqheight() - txt.winfo_reqheight()
+        desired_h = chrome_h + content_h + 8
+        max_h = int(win.winfo_screenheight() * 0.9)
+        final_h = min(desired_h, max_h)
+
+        win.geometry(f"560x{final_h}")
 
 
 def main():
