@@ -171,6 +171,8 @@ class ForgesteelGUI(tk.Tk):
         try:
             self.iconbitmap(default="")
         except Exception:
+            # Some platforms or environments may not support setting a window icon;
+            # ignore these non-critical errors and proceed with the default icon.
             pass
 
         self._build_styles()
