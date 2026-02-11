@@ -540,6 +540,14 @@ class ForgesteelGUI(tk.Tk):
         except json.JSONDecodeError as e:
             logger.error(f"Invalid JSON in input file: {e}")
             self._finish(False)
+        except FileNotFoundError as e:
+            path = getattr(e, 'filename', None) or e
+            logger.error(f"File or directory not found: {path}")
+            self._finish(False)
+        except PermissionError as e:
+            path = getattr(e, 'filename', None) or e
+            logger.error(f"Permission denied: {path}")
+            self._finish(False)
         except Exception as e:
             logger.error(f"Error: {e}")
             if verbose:

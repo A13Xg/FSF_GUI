@@ -96,9 +96,18 @@ function Install-PythonWinget {
 
 # --- Install Python via direct download --------------------------------------
 function Install-PythonDirect {
-    Write-Step "Downloading Python installer from python.org..."
+    Write-Step "Detecting system architecture..."
 
-    $installerUrl = "https://www.python.org/ftp/python/3.12.8/python-3.12.8-amd64.exe"
+    $pyVersion = "3.12.8"
+    $arch = $env:PROCESSOR_ARCHITECTURE
+    switch ($arch) {
+        "ARM64"  { $suffix = "arm64" }
+        "x86"    { $suffix = "win32" }  # 32-bit Windows
+        default  { $suffix = "amd64" }  # AMD64 / x64
+    }
+
+    $installerUrl = "https://www.python.org/ftp/python/$pyVersion/python-$pyVersion-$suffix.exe"
+    Write-Step "Downloading Python $pyVersion ($suffix) from python.org..."
     $installerPath = Join-Path $env:TEMP "python-installer.exe"
 
     try {
