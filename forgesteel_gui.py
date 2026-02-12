@@ -497,7 +497,7 @@ class ForgesteelGUI(tk.Tk):
         else:
             logging.getLogger().setLevel(logging.INFO)
 
-        thread = threading.Thread(target=self._conversion_worker)
+        thread = threading.Thread(target=self._conversion_worker, daemon=True)
         thread.start()
 
     def _conversion_worker(self):
